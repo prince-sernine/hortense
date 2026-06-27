@@ -1,0 +1,56 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "hortense"
+version = "0.1.0"
+description = "Windows interview-integrity scanner for screen-share invisible windows, overlays, and interview-assist tools."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Sernine" }]
+keywords = [
+    "security",
+    "windows",
+    "interview",
+    "screen-capture",
+    "overlay-detection",
+    "WDA_EXCLUDEFROMCAPTURE",
+    "interview-integrity",
+    "cluely",
+    "parakeet",
+    "proctoring",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Security",
+]
+dependencies = [
+    "click>=8.1",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+exe = ["pyinstaller>=6"]
+
+[project.scripts]
+hortense = "hortense.cli:main"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+manifest-path = "native/hortense-core/Cargo.toml"
+module-name = "hortense._core"
+binding = "PyO3"
+python-source = "src"
+include = ["configs/**/*.yml", "THREAT_MODEL.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

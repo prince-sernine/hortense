@@ -1,0 +1,133 @@
+from __future__ import annotations
+
+import sys
+from typing import Iterable
+
+from hortense.config import ScanConfig, Signatures
+from hortense.models import DetectionEvent
+
+
+def require_windows() -> None:
+    if sys.platform != "win32":
+        raise SystemExit("hortense requires Windows (win32).")
+
+
+def _import_core():
+    require_windows()
+    try:
+        from hortense import _core
+    except ImportError as exc:
+        raise SystemExit(
+            "hortense._core extension missing. Run: maturin develop --release"
+        ) from exc
+    return _core
+
+
+def _normalize(raw_events: Iterable[dict]) -> list[DetectionEvent]:
+    return [DetectionEvent.from_raw(item) for item in raw_events]
+
+
+def _dedupe(events: Iterable[DetectionEvent]) -> list[DetectionEvent]:
+    seen: set[str] = set()
+    ordered: list[DetectionEvent] = []
+    for event in sorted(events, key=lambda e: (-e.score, e.id)):
+        if event.id in seen:
+            continue
+        seen.add(event.id)
+        ordered.append(event)
+    return ordered
+
+
+def _collapse_process_events(events: Iterable[DetectionEvent]) -> list[DetectionEvent]:
+    merged: dict[tuple[str, str, str], DetectionEvent] = {}
+    passthrough: list[DetectionEvent] = []
+
+    for event in events:
+        if event.category != "process":
+            passthrough.append(event)
+            continue
+
+        match_reason = str(event.metadata.get("match_reason", ""))
+        identity = (
+            (event.process_path or event.process_name or "").casefold(),
+            match_reason,
+        )
+        key = ("process", identity[0], identity[1])
+        current = merged.get(key)
+        if current is None or event.score > current.score:
+            merged[key] = event
+
+    return passthrough + list(merged.values())
+
+
+def _collapse_window_events(events: Iterable[DetectionEvent]) -> list[DetectionEvent]:
+    """Electron apps often expose multiple HWNDs for one visible window."""
+    merged: dict[tuple[str, int | None, str, str], DetectionEvent] = {}
+    passthrough: list[DetectionEvent] = []
+    window_categories = {"display_affinity", "overlay"}
+
+    for event in events:
+        if event.category not in window_categories:
+            passthrough.append(event)
+            continue
+
+        key = (
+            event.category,
+            event.pid,
+            (event.process_path or event.process_name or "").casefold(),
+            (event.window_title or "").casefold(),
+        )
+        current = merged.get(key)
+        if current is None or event.score > current.score:
+            merged[key] = event
+
+    return passthrough + list(merged.values())
+
+
+def run_scan(config: ScanConfig | None = None) -> list[DetectionEvent]:
+    cfg = config or ScanConfig()
+    signatures = cfg.resolve_signatures()
+    core = _import_core()
+
+    allow = signatures.allowlist_processes
+    allow_paths = signatures.allowlist_path_substrings
+
+    events: list[DetectionEvent] = []
+    events.extend(_normalize(core.scan_display_affinity(allow, allow_paths)))
+    events.extend(_normalize(core.scan_overlays(allow, allow_paths)))
+    events.extend(_normalize(_scan_processes(core, signatures)))
+    events.extend(_normalize(_scan_microphone(core, signatures)))
+    events.extend(_normalize(_scan_network(core, signatures)))
+    collapsed = _collapse_window_events(_collapse_process_events(_dedupe(events)))
+    return sorted(collapsed, key=lambda e: (-e.score, e.category, e.id))
+
+
+def _scan_processes(core, signatures: Signatures) -> list[dict]:
+    return core.scan_processes(
+        signatures.process_names,
+        signatures.path_substrings,
+        signatures.allowlist_processes,
+        signatures.allowlist_path_substrings,
+        signatures.process_tree_roots,
+    )
+
+
+def _scan_microphone(core, signatures: Signatures) -> list[dict]:
+    return core.scan_microphone_sessions(
+        signatures.allowlist_processes,
+        signatures.allowlist_path_substrings,
+        signatures.interview_processes,
+    )
+
+
+def _scan_network(core, signatures: Signatures) -> list[dict]:
+    return core.scan_network(
+        signatures.network_domains,
+        signatures.allowlist_processes,
+        signatures.allowlist_path_substrings,
+        signatures.interview_processes,
+    )
+
+
+def has_high_severity(events: Iterable[DetectionEvent]) -> bool:
+    return any(event.severity == "high" for event in events)

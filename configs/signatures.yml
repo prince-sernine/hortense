@@ -1,0 +1,243 @@
+# Community-maintained heuristics. Generic names only; no vendor trademarks in defaults.
+
+# Signatures catch known installs and names. Custom or GPU-only builds without WDA may evade this file alone; see THREAT_MODEL.md.
+
+
+
+# Executable names that should never raise mic/overlay/process/network findings.
+
+allowlist_processes:
+
+  # Windows core
+
+  - System
+
+  - svchost.exe
+
+  - dwm.exe
+
+  - explorer.exe
+
+  - RuntimeBroker.exe
+
+  - SearchHost.exe
+
+  - ShellExperienceHost.exe
+
+  - ApplicationFrameHost.exe
+
+  - SystemSettings.exe
+
+  - audiodg.exe
+
+  - Taskmgr.exe
+
+  - csrss.exe
+
+  - winlogon.exe
+
+  - fontdrvhost.exe
+
+  - sihost.exe
+
+  - ctfmon.exe
+
+  - msedgewebview2.exe
+
+  - WebViewHost.exe
+
+  - WindowsTerminal.exe
+
+  - wt.exe
+
+  # Interview / communication (expected during calls)
+
+  - zoom.exe
+
+  - teams.exe
+
+  - ms-teams.exe
+
+  - chrome.exe
+
+  - msedge.exe
+
+  - webex.exe
+
+  - slack.exe
+
+  - skype.exe
+
+  - discord.exe
+
+  - RingCentral.exe
+
+  - GoTo.exe
+
+  - CiscoCollabHost.exe
+
+  # Dev tools (legitimate AI use during technical interviews)
+
+  - Code.exe
+
+  - Cursor.exe
+
+  - devenv.exe
+
+  - Windsurf.exe
+
+  # Recording / GPU / overlay utilities
+
+  - obs64.exe
+
+  - obs32.exe
+
+  - NVIDIA Overlay.exe
+
+  - NVIDIA Share.exe
+
+  - AMDRSSrcExt.exe
+
+  - RTSS.exe
+
+  - RTSSHooksLoader64.exe
+
+  - XboxGameBar.exe
+
+  - GameBar.exe
+
+  - PowerToys.exe
+
+  - PowerToys.AlwaysOnTop.exe
+
+  # Audio routing / virtual cables
+
+  - voicemeeter8.exe
+
+  - voicemeeter8x64.exe
+
+  - voicemeeterpro.exe
+
+  - voicemeeterpro_x64.exe
+
+  - vbvoicemeeter8.exe
+
+
+
+# Image paths under these prefixes are treated as trusted (lowercase match).
+
+allowlist_path_substrings:
+
+  - \windows\system32\
+
+  - \windows\syswow64\
+
+  - \windows\winsxs\
+
+  - \program files\zoom\
+
+  - \program files (x86)\zoom\
+
+  - \program files\microsoft\teams\
+
+  - \program files (x86)\microsoft\teams\
+
+  - \program files\google\chrome\
+
+  - \program files (x86)\google\chrome\
+
+  - \program files (x86)\microsoft\edge\
+
+  - \program files\microsoft\edge\
+
+  - \program files\obs-studio\
+
+  - \program files (x86)\obs-studio\
+
+  - \program files\microsoft visual studio\
+
+  - \program files\powertoys\
+
+  - \appdata\local\google\chrome\
+
+  - \appdata\local\microsoft\teams\
+
+  - \appdata\local\microsoft\edgewebview\
+
+  - \appdata\local\programs\cursor\
+
+  - \appdata\local\programs\microsoft vs code\
+
+
+
+process_names:
+
+  - pmodule
+
+  - parakeet
+
+  - parakeet-ai
+
+  - parakeet_service
+
+  - cluely
+
+  - interviewcoder
+
+  - lockedin
+
+
+
+path_substrings:
+
+  - interview assist
+
+  - parakeetai-desktop
+
+  - parakeet-ai
+
+  - cluely-v2
+
+  - cluely
+
+
+
+# Install roots use path segment matching (see hortense-core util.rs).
+
+process_tree_roots:
+
+  - parakeetai-desktop
+
+  - cluely-v2
+
+
+
+network_domains:
+
+  - api.openai.com
+
+  - api.anthropic.com
+
+  - parakeet-ai.com
+
+
+
+interview_processes:
+
+  - zoom.exe
+
+  - teams.exe
+
+  - ms-teams.exe
+
+  - chrome.exe
+
+  - msedge.exe
+
+  - webex.exe
+
+  - slack.exe
+
+  - skype.exe
+
+
