@@ -66,14 +66,24 @@ fn scan_processes(
 }
 
 #[pyfunction]
-#[pyo3(signature = (allowlist, allowlist_path_substrings, interview_processes))]
+#[pyo3(signature = (allowlist, allowlist_path_substrings, interview_processes, process_names, path_substrings, process_tree_roots))]
 fn scan_microphone_sessions(
     py: Python<'_>,
     allowlist: Vec<String>,
     allowlist_path_substrings: Vec<String>,
     interview_processes: Vec<String>,
+    process_names: Vec<String>,
+    path_substrings: Vec<String>,
+    process_tree_roots: Vec<String>,
 ) -> PyResult<Vec<Py<PyAny>>> {
-    let events = win32::microphone::scan(allowlist, allowlist_path_substrings, interview_processes);
+    let events = win32::microphone::scan(
+        allowlist,
+        allowlist_path_substrings,
+        interview_processes,
+        process_names,
+        path_substrings,
+        process_tree_roots,
+    );
     events_to_py(py, events)
 }
 

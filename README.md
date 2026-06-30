@@ -8,7 +8,7 @@
 
 Windows interview-integrity research tool. Detects screen-capture exclusion, suspicious overlays, known process signatures, microphone capture during interview apps, and outbound AI API connections.
 
-Hortense looks for the Win32 traces behind interview-assist overlays: `WDA_EXCLUDEFROMCAPTURE`, screen-share invisible windows, click-through overlays, microphone capture, and process trees tied to tools like Cluely and Parakeet. The point is simple: compare what the call can see with what Windows knows is actually on the machine.
+Hortense looks for the Win32 traces behind interview-assist overlays: `WDA_EXCLUDEFROMCAPTURE`, screen-share invisible windows, click-through overlays, microphone capture, helper-owned WebView2 audio, and process trees tied to tools like Cluely, Parakeet, and LinkJobAI. The point is simple: compare what the call can see with what Windows knows is actually on the machine.
 
 **Platform:** Windows only (CLI). Build from source; no prebuilt trust required.
 
@@ -19,10 +19,10 @@ Hortense looks for the Win32 traces behind interview-assist overlays: `WDA_EXCLU
 | Display affinity (`WDA_EXCLUDEFROMCAPTURE`, `WDA_MONITOR`) | Live | Windows hidden from screen capture but visible on the monitor |
 | Overlay heuristics | Live | Layered, topmost, click-through windows covering real screen |
 | Process signatures | Live | Name, path, install-tree roots, child processes |
-| Microphone correlation | Live | Capture active while an interview call is running |
+| Microphone correlation | Live | Mic capture during an interview call, including WebView2 audio when ancestry points back to a suspicious host |
 | Network correlation | Live | Connections to the AI endpoints in `configs/signatures.yml` |
 | Allowlist suppression | Live | Zoom, Teams, Chrome and system processes excluded by design |
-| Capture-path discrepancy | Planned (v0.2) | DXGI duplication against a deeper per-window read |
+| Capture-path discrepancy | Planned | DXGI duplication against a deeper per-window read |
 | Browser/test attestation | Planned | Local companion verifies meeting app, test browser, and capture path agree |
 | Relay / API piggybacking | Planned | Model calls tunneled through innocent-looking relay hosts; answered by owner attribution and timing, not destination alone |
 | UDP / QUIC network paths | Planned | UDP owner tables, DNS/ETW history, and rolling timing buffers for short-lived sockets |
@@ -32,27 +32,37 @@ Hortense looks for the Win32 traces behind interview-assist overlays: `WDA_EXCLU
 
 ## Detection results
 
-Two commercial interview tools, tested on a real machine.
+Three commercial interview tools, tested on a real machine.
 
-| Signal | Parakeet | Cluely |
-|--------|----------|--------|
-| Display affinity | Caught | Caught (undetectable mode on) |
-| Overlay heuristics | Caught | Not flagged |
-| Process / path / tree | Caught | Caught |
-| Microphone | Caught | Caught |
-| Network | Not observed | Not observed |
+| Signal | Parakeet | Cluely | LinkJobAI |
+|--------|----------|--------|-----------|
+| Display affinity | Caught | Caught (undetectable mode on) | Caught |
+| Overlay heuristics | Caught | Not flagged | Caught |
+| Process / path / tree | Caught | Caught | Caught |
+| Microphone | Caught | Caught | Caught through WebView2 ancestry |
+| Network | Not observed | Not observed | Not observed |
 
-In detectable mode, Cluely behaved more like a normal app for display affinity, but Hortense still flagged process and microphone activity. With undetectable mode on, affinity fired too. Network misses here were not caused by HTTPS alone; see [The network shell game](THREAT_MODEL.md#the-network-shell-game).
+### Parakeet
+
+**Verdict:** Caught as `pmodule.exe`: display affinity, overlay behavior, process signature, and microphone capture.
 
 ![Parakeet detected by Hortense](docs/img/parakeet-scan.png)
 
-Parakeet evidence: detected as `pmodule.exe` with display affinity, overlay behavior, process signature, and microphone capture.
+### Cluely
+
+**Verdict:** Caught in undetectable mode: display affinity, process signature, and microphone capture. With undetectable mode off, the window behaved more like a normal app, but process and microphone evidence still held.
 
 ![Cluely detected by Hortense](docs/img/cluely-scan.png)
 
-Cluely evidence: undetectable mode enabled, display affinity caught, process signature caught, and microphone capture caught.
+### LinkJobAI
 
-Screenshots show the raw `hortense scan` detection output from those runs. Cluely and Parakeet are third-party products; Hortense is independent research and is not affiliated with either.
+**Verdict:** Caught as `Lynccontainer.exe`: display affinity, overlay behavior, process signature, and WebView2-owned microphone capture attributed back to the host tree.
+
+![LinkJobAI detected by Hortense](docs/img/linkjobai-scan.jpg)
+
+The network row stayed quiet across these runs. That is not an HTTPS excuse; it is the relay problem. See [The network shell game](THREAT_MODEL.md#the-network-shell-game).
+
+Screenshots show raw local `hortense scan` evidence from the three runs. Cluely, Parakeet, and LinkJobAI are third-party products; Hortense is independent research and is not affiliated with them.
 
 ## Build requirements
 

@@ -186,6 +186,10 @@ process_names:
 
   - lockedin
 
+  - lynccontainer
+
+  - linkjobai
+
 
 
 path_substrings:
@@ -200,6 +204,10 @@ path_substrings:
 
   - cluely
 
+  - linkjobai
+
+  - aihirely
+
 
 
 # Install roots use path segment matching (see hortense-core util.rs).
@@ -209,6 +217,12 @@ process_tree_roots:
   - parakeetai-desktop
 
   - cluely-v2
+
+  - lynccontainer
+
+  - linkjobai
+
+  - com.aihirely.linkjobai
 
 
 

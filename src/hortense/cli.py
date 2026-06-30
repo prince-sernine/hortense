@@ -13,10 +13,19 @@ from hortense.scanner import has_high_severity, require_windows, run_scan
 BANNER = """╻ ╻┏━┓┏━┓╺┳╸┏━╸┏┓╻┏━┓┏━╸
 ┣━┫┃ ┃┣┳┛ ┃ ┣╸ ┃┗┫┗━┓┣╸ 
 ╹ ╹┗━┛╹┗╸ ╹ ┗━╸╹ ╹┗━┛┗━╸"""
+ASCII_BANNER = "HORTENSE"
 
 
 def emit_banner() -> None:
-    click.echo(BANNER)
+    # The mark should announce Hortense, never break the scan.
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        BANNER.encode(encoding)
+        banner = BANNER
+    except UnicodeEncodeError:
+        banner = ASCII_BANNER
+
+    click.echo(banner)
     click.echo("")
 
 

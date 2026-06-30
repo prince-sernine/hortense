@@ -22,7 +22,11 @@ No single signal decides anything. They corroborate. That is the design.
 
 I expected compositor tricks and GPU sleight of hand. What I found was plainer: display affinity and unsubtle overlays. Hortense caught them in the field runs, along with the AppData install paths and the audio pipelines they leave behind.
 
-I ran Hortense against two popular tools because real products leave real evidence. Parakeet showed up as `pmodule.exe`: affinity, overlay, process, microphone. Cluely with undetectable mode on tripped display affinity; with it off, the window behaved more like a normal app, but the process and microphone trail still held.
+I ran Hortense against three popular tools because real products leave real evidence.
+
+Parakeet showed up as `pmodule.exe`: affinity, overlay, process, microphone. Cluely with undetectable mode on tripped display affinity; with it off, the window behaved more like a normal app, but the process and microphone trail still held. LinkJobAI showed up as `Lynccontainer.exe`: affinity, overlay, process, and WebView2 audio ancestry.
+
+The pattern matters. Not one magic signal. A chain Windows could still name.
 
 Renaming the binary defeats exactly one check. The install folder stays. The affinity flag still reads. The microphone capture continues. The outbound connection still resolves. Hortense catches the rest on path, tree, audio, and network. The marketing promises invisibility. Task Manager disagrees.
 
@@ -47,15 +51,18 @@ GPU and compositor evasion get most of the noise, so read the problem as a strai
 | Hides in a known tool, renamed or relocated | Matches name, path, install tree, and child processes | Live |
 | Lives entirely inside an allowlisted browser tab | Browser/test attestation, capture-path checks, and correlation outside process name alone | Planned |
 | Pipes audio out during the call | Correlates microphone ownership with an active interview | Live |
+| Moves audio capture into WebView2 or another helper process | Attributes the audio owner through parent process and install-tree ancestry before judging the host | Live |
 | Calls a model over the network | Watches connections to known AI endpoints | Live |
 | Moves network traffic to QUIC, UDP, or short-lived relay sockets | UDP owner tables, DNS/ETW history, and rolling timing buffers | Planned |
-| Uses a DirectComposition or D3D layer that slips past simple heuristics | Compares standard duplication against a deeper per-window read | Planned (v0.2) |
-| Spoofs the affinity flag so the query itself lies | The same discrepancy check: what capture sees against what the window shows | Planned (v0.2) |
+| Uses a DirectComposition or D3D layer that slips past simple heuristics | Compares standard duplication against a deeper per-window read | Planned |
+| Spoofs the affinity flag so the query itself lies | The same discrepancy check: what capture sees against what the window shows | Planned |
 | Reads the GPU scanout beneath DWM through a vendor or kernel path | No vendor hook or kernel driver; compare visible surface, capture path, and window truth at the boundary | Boundary only |
 | Drops below user mode to tamper with what Win32 reports | No kernel arms race; catch the mismatch where the shared capture and local window state disagree | Boundary only |
 | Moves the cheat to a phone or a second machine | Outside the endpoint boundary; no local scanner has a sensor on another device | Out of scope |
 
 The cheap moves at the top are where the commercial tools actually live. The expensive ones at the bottom are real, but they cost the kind of effort most paying users never spend. Hortense raises that cost. On its own, it does not close the problem.
+
+Helper processes are part of that bargain. WebView2 is not guilty by itself; half the desktop wears it now. The question is who it serves. If the audio service traces back to a hidden-window host or a known install tree, the costume stops being interesting and the ancestry starts talking.
 
 ## The network shell game
 
