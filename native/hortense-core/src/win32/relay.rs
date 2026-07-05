@@ -298,6 +298,13 @@ fn evaluate_trust(
     target: &RelayTarget,
     config: &RelayScanConfig<'_>,
 ) -> (RelayTrustAction, &'static str) {
+    // Cheat signature first: never suppress known threat needles.
+    if path_matches_any(Some(&target.path), config.process_names)
+        || path_matches_any(Some(&target.path), config.path_substrings)
+    {
+        return (RelayTrustAction::Flag, "cheat");
+    }
+
     if is_companion_process(&target.name, &target.path, &target.publisher, config) {
         return (RelayTrustAction::Suppress, "companion");
     }
@@ -311,12 +318,6 @@ fn evaluate_trust(
         return (RelayTrustAction::Suppress, "trusted");
     }
 
-    if path_matches_any(Some(&target.path), config.process_names)
-        || path_matches_any(Some(&target.path), config.path_substrings)
-    {
-        return (RelayTrustAction::Flag, "suspicious");
-    }
-
     let trusted_pub = target.publisher.signature_valid
         && publisher_matches_trusted(
             target.publisher.publisher.as_deref(),
@@ -324,6 +325,18 @@ fn evaluate_trust(
         );
     let trusted_path = path_is_trusted(&target.path, config.trust_path_prefixes);
     let suspicious_path = path_is_suspicious(&target.path, config.suspicious_path_prefixes);
+    let microsoft = target
+        .publisher
+        .publisher
+        .as_deref()
+        .map(|p| p.eq_ignore_ascii_case("Microsoft Corporation"))
+        .unwrap_or(false);
+    let user_data = normalize_path(&target.path).contains("\\appdata\\")
+        || normalize_path(&target.path).contains("\\users\\");
+
+    if microsoft && user_data && !trusted_path {
+        return (RelayTrustAction::Downgrade, "unknown");
+    }
 
     if trusted_pub && trusted_path && !suspicious_path {
         return (RelayTrustAction::Suppress, "trusted");
@@ -430,27 +443,44 @@ pub fn is_nearby_peer_v6(ip: &str) -> bool {
     false
 }
 
+fn install_root_key(path: &str) -> String {
+    let normalized = normalize_path(path);
+    if normalized.is_empty() {
+        return String::new();
+    }
+    normalized
+        .rsplit_once('\\')
+        .map(|(parent, _)| parent.to_string())
+        .unwrap_or(normalized)
+}
+
 fn apply_shape_upgrades(events: &mut [DetectionEvent]) {
-    let listener_pids: HashSet<u32> = events
+    let listener_roots: HashSet<String> = events
         .iter()
         .filter(|e| e.metadata.get("signal").and_then(|v| v.as_str()) == Some("listener"))
-        .filter_map(|e| e.pid)
+        .filter_map(|e| e.process_path.as_deref().map(install_root_key))
+        .filter(|k| !k.is_empty())
         .collect();
-    let intranet_pids: HashSet<u32> = events
+    let intranet_roots: HashSet<String> = events
         .iter()
         .filter(|e| e.metadata.get("signal").and_then(|v| v.as_str()) == Some("intranet"))
-        .filter_map(|e| e.pid)
+        .filter_map(|e| e.process_path.as_deref().map(install_root_key))
+        .filter(|k| !k.is_empty())
         .collect();
 
     for event in events.iter_mut() {
         if event.category != "stealth_relay" {
             continue;
         }
-        let Some(pid) = event.pid else {
+        let Some(path) = event.process_path.as_deref() else {
             continue;
         };
+        let root = install_root_key(path);
+        if root.is_empty() {
+            continue;
+        }
 
-        if listener_pids.contains(&pid) && intranet_pids.contains(&pid) {
+        if listener_roots.contains(&root) && intranet_roots.contains(&root) {
             event.severity = "high".into();
             event.title = "Suspicious stealth relay correlated with intranet peer activity".into();
             if let Some(meta) = event.metadata.as_object_mut() {

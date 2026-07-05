@@ -1,0 +1,44 @@
+# Bundled trust seed for Hortense v0.3.1 (Tier 1 AV + essentials).
+# Local cache: .hortense/trusted_catalog.yml (from `hortense catalog update`)
+# User overrides: .hortense/catalog_overrides.yml
+
+catalog_version: 1
+
+tier1_publishers:
+  - AVAST Software s.r.o.
+  - Avast Software s.r.o.
+  - Gen Digital Inc.
+  - NortonLifeLock Inc.
+  - Malwarebytes Corporation
+  - ESET, spol. s r.o.
+  - Kaspersky Lab
+  - Bitdefender SRL
+  - Bitdefender S.R.L.
+  - Webroot Inc.
+  - Webroot Software, Inc.
+
+tier2_publishers:
+  - Spotify AB
+  - Spotify USA Inc
+  - Microsoft Corporation
+  - Google LLC
+  - Zoom Video Communications, Inc.
+
+trust_publishers: []
+
+companion_processes:
+  - PhoneExperienceHost.exe
+  - YourPhone.exe
+  - kdeconnectd.exe
+  - QuickShare.exe
+
+trust_path_prefixes:
+  - \windows\
+  - \program files\
+  - \program files (x86)\
+
+cloud_sync_path_prefixes:
+  - \appdata\local\microsoft\onedrive\
+  - \appdata\local\google\drive fs\
+
+processes: []

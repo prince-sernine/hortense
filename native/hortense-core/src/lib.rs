@@ -149,6 +149,23 @@ fn scan_stealth_relays(
     events_to_py(py, events)
 }
 
+#[pyfunction]
+fn process_snapshot(py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
+    use pyo3::types::PyDict;
+    let out: Vec<Py<PyAny>> = win32::process::snapshot()
+        .into_iter()
+        .map(|(pid, parent_pid, exe, path)| {
+            let dict = PyDict::new_bound(py);
+            dict.set_item("pid", pid).unwrap();
+            dict.set_item("parent_pid", parent_pid).unwrap();
+            dict.set_item("exe", exe).unwrap();
+            dict.set_item("path", path).unwrap();
+            dict.into_any().unbind()
+        })
+        .collect();
+    Ok(out)
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(platform, m)?)?;
@@ -159,5 +176,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(scan_network, m)?)?;
     m.add_function(wrap_pyfunction!(interview_session_active, m)?)?;
     m.add_function(wrap_pyfunction!(scan_stealth_relays, m)?)?;
+    m.add_function(wrap_pyfunction!(process_snapshot, m)?)?;
     Ok(())
 }

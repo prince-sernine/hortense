@@ -8,7 +8,11 @@
 
 Windows interview-integrity research tool. Detects screen-capture exclusion, suspicious overlays, known process signatures, microphone capture during interview apps, outbound AI API connections, and PC-to-phone stealth relay listeners.
 
-Hortense looks for the Win32 traces behind interview-assist overlays: `WDA_EXCLUDEFROMCAPTURE`, screen-share invisible windows, click-through overlays, microphone capture, helper-owned WebView2 audio, local TCP relay listeners (Interview Man / Weather Tracker class), and process trees tied to tools like Cluely, Parakeet, and LinkJobAI. Interview Man is the standard ghost-relay product; Weather Tracker is its generic white-label build. The point is simple: compare what the call can see with what Windows knows is actually on the machine.
+Hortense looks for the Win32 traces behind interview-assist tools: `WDA_EXCLUDEFROMCAPTURE`, screen-share invisible windows, click-through overlays, microphone capture, helper-owned WebView2 audio, local TCP relay listeners used by Interview Man and its generic Weather Tracker build, and process trees tied to tools like Cluely, Parakeet, and LinkJobAI. The point is simple: compare what the call can see with what Windows knows is actually on the machine.
+
+v0.3.1 makes those traces read as products, not loose PIDs. Findings are grouped by install root and parent tree, so relay, overlay, microphone, and process evidence from the same tool fuse into one cluster. In `watch`, Hortense tells the session story: what appeared, what partially cleared, and when the whole cluster is `[CLEARED]`.
+
+Known meeting apps, AV agents, and signed install paths sit on a hybrid trust catalog so legitimate software stays quiet. Cheat signatures still win first. Everything else has to earn trust through publisher, path, and context. No single signal convicts. The stack does. Full reasoning and limits: [How Hortense deduces](THREAT_MODEL.md#how-hortense-deduces).
 
 **Platform:** Windows only (CLI). Build from source; no prebuilt trust required.
 
@@ -21,7 +25,8 @@ Hortense looks for the Win32 traces behind interview-assist overlays: `WDA_EXCLU
 | Process signatures | Live | Name, path, install-tree roots, child processes |
 | Microphone correlation | Live | Mic capture during an interview call, including WebView2 audio when ancestry points back to a suspicious host |
 | Network correlation | Live | Connections to the AI endpoints in `configs/signatures.yml` |
-| Stealth relay (PC-to-phone link) | Live | TCP listeners and intranet peers during interview sessions, with Authenticode/path trust tiers and lifecycle in `watch` |
+| Stealth relay (PC-to-phone link) | Live | Local TCP listeners and LAN peers during interview sessions; cheat-first trust, product-cluster fusion, session lifecycle in `watch` |
+| Trust catalog | Live | Bundled seed merged into local `.hortense/trusted_catalog.yml`; `hortense catalog update` / `catalog status` |
 | Allowlist suppression | Live | Zoom, Teams, Chrome and system processes excluded by design |
 | Capture-path discrepancy | Planned | DXGI duplication against a deeper per-window read |
 | Browser/test attestation | Planned | Local companion verifies meeting app, test browser, and capture path agree |
@@ -104,6 +109,11 @@ python -m pytest tests
 | `hortense watch` | Background poll; append JSONL to `.hortense/events.jsonl` and print new hits live |
 | `hortense watch --quiet` | JSONL only; suppress live terminal output |
 | `hortense watch --interval 1 --jsonl path\to\events.jsonl` | Custom poll interval and log path |
+| `hortense catalog update` | Refresh local trust catalog cache from bundled seed |
+| `hortense catalog status` | Show cache age and merged publisher counts |
+| `hortense scan --sync-catalog` | Use merged catalog; warn if cache is older than 14 days |
+
+`scan` is a forensic snapshot. `watch` is a session narrative with lifecycle events and `[CLEARED]` rollup when all signals for a product cluster drop.
 
 ## Configuration
 

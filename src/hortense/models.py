@@ -47,4 +47,4 @@ class DetectionEvent:
 
     @property
     def score(self) -> int:
-        return {"low": 1, "medium": 2, "high": 3}.get(self.severity, 0)
+        return {"low": 1, "medium": 2, "high": 3, "cleared": 0}.get(self.severity, 0)

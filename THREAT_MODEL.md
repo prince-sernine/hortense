@@ -10,13 +10,25 @@ Build it yourself. Never run a stranger's binary.
 
 ## What Hortense catches
 
-Hortense runs six scans and reads them together. Display affinity on visible windows, `WDA_EXCLUDEFROMCAPTURE` and `WDA_MONITOR`. Overlay heuristics for layered, topmost, click-through windows that cover real screen. A process walk across name and path signatures, install-tree roots, and children spawned from a flagged parent. While Zoom, Teams, or Chrome is in a call, it notes which process holds the microphone and which opens connections to the AI endpoints in `configs/signatures.yml`. During the same interview window it also reads the IPv4 TCP owner table for suspicious local listeners and intranet peers: the PC-to-phone relay shape used by tools like Interview Man and Weather Tracker.
+Hortense runs six scans and reads them together. Display affinity on visible windows, `WDA_EXCLUDEFROMCAPTURE` and `WDA_MONITOR`. Overlay heuristics for layered, topmost, click-through windows that cover real screen. A process walk across name and path signatures, install-tree roots, and children spawned from a flagged parent. While Zoom, Teams, or Chrome is in a call, it notes which process holds the microphone and which opens connections to the AI endpoints in `configs/signatures.yml`. During the same interview window it also reads the IPv4 TCP owner table for suspicious local listeners and LAN peers: the PC-to-phone relay shape used by Interview Man and its generic Weather Tracker build.
 
 It is deliberate about silence. Known interview apps and trusted install paths sit on an allowlist, so a video call using your microphone is never mistaken for evidence. System processes too. That restraint took real work, and it matters. A tool that cries wolf is a tool no one runs twice.
 
 That same restraint is a known soft spot. A cheat that lives entirely inside an allowlisted browser tab hides in good company, which is why affinity, overlay, and network have to carry the weight when the process list looks innocent.
 
 No single signal decides anything. They corroborate. That is the design.
+
+## How Hortense deduces
+
+The commercial cheats above do not need miracle tech. They lean on ordinary Windows behavior: hide a window from capture, float an overlay, grab the mic through a helper, call a model, or relay answers to a phone. Hortense v0.3.1 reads those surfaces in a fixed order and refuses to convict on costume alone.
+
+The first pass collects the raw facts. Affinity, overlay, process, microphone, network, relay. The second pass asks who owns them. Each finding gets a `product_key`: usually the install root or process tree behind it. That matters because the real tools split themselves across helpers. A relay listener, a WebView2 audio process, and a renamed UI can still belong to one product.
+
+The third pass fuses evidence on that product. Relay plus overlay plus microphone is a stack, not three unrelated noises. Then trust gets applied with the same rule every time: cheat signatures in `configs/signatures.yml` win first. Signed software can quiet relay noise only when Authenticode, path, and the hybrid catalog agree. Typosquat names against the catalog escalate instead of hiding.
+
+`scan` returns the fused snapshot. `watch` turns it into a session narrative: a layer appeared, part of the product cleared, or `[CLEARED]` when every signal on that cluster is gone. That is the v0.3.1 change in one sentence: evidence now follows the product, not the PID.
+
+Corroboration beats costume. A stolen cert might quiet relay; it does not quiet affinity, overlay, microphone, and community signatures together. A phone in your lap, kernel tampering, and cheats that never touch this OS stay outside the boundary, and Hortense says so plainly.
 
 ## What the lab showed
 
@@ -71,7 +83,7 @@ The cleanest network trick is to look boring.
 
 Today Hortense reads the Windows IPv4 TCP owner table while an interview app is active: process, remote IP, remote port, active socket. It resolves the AI domains in `configs/signatures.yml` and looks for a process on this machine talking to one of them. A tool that calls `api.openai.com` in the open is not subtle. It leaves its address on the desk.
 
-The PC-to-phone relay is a different costume with the same goal. Interview Man (standard) and Weather Tracker (generic white-label) listen on a local port (often `:8096`) and accept connections from a phone on the same Wi-Fi. The model call may never leave the LAN. Hortense v0.3 watches for that shape: a non-trusted process binding a listener during an interview, especially on all interfaces, plus established peers on RFC1918 or CGNAT ranges. Authenticode publisher strings and install-path trust tiers keep Zoom and Teams from being mistaken for a relay. In `watch` mode, listeners emit lifecycle events (`appeared`, `gone`, `returned`) instead of spamming the same static finding every poll.
+The PC-to-phone relay is a different costume with the same goal. Interview Man is the standard build. Weather Tracker is the generic white-label build. Both listen on a local port and accept connections from a phone on the same Wi-Fi. The model call may never leave the LAN. Hortense watches for that shape: a non-trusted process binding a listener during an interview, especially on all interfaces, plus established peers on RFC1918 or CGNAT ranges. Cheat signatures fire first; Authenticode and the hybrid trust catalog keep Zoom, Teams, and signed consumer apps from being mistaken for a relay when the tiers agree. In `watch` mode, each signal follows the product cluster, so the terminal shows appeared, partial cleared, and `[CLEARED]` instead of spamming the same static finding every poll.
 
 The better lie moves the address, not the act. It sends the request through a relay, a SaaS endpoint, a CDN edge, or a vendor backend. It uses QUIC over UDP instead of TCP. It opens a socket for half a breath and closes it between polls. TLS keeps the payload sealed, as it should. The mistake is thinking the payload was the only evidence.
 

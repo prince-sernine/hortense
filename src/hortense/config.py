@@ -75,6 +75,8 @@ class ScanConfig:
     watch_mode: bool = False
     quiet_watch: bool = False
     use_color: bool = True
+    sync_catalog: bool = False
+    debug: bool = False
 
     def resolve_signatures(self) -> Signatures:
         return Signatures.load(self.signatures_path)

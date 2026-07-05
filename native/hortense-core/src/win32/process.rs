@@ -62,6 +62,13 @@ pub fn scan(
         .collect()
 }
 
+pub fn snapshot() -> Vec<(u32, u32, String, Option<String>)> {
+    collect_processes()
+        .into_iter()
+        .map(|record| (record.pid, record.parent_pid, record.exe, record.path))
+        .collect()
+}
+
 fn collect_processes() -> Vec<ProcRecord> {
     let mut records = Vec::new();
     unsafe {

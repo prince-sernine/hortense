@@ -6,7 +6,7 @@ import time
 from hortense.config import ScanConfig
 from hortense.human_reporter import HumanReporter
 from hortense.models import DetectionEvent
-from hortense.relay_lifecycle import RelayLifecycleTracker
+from hortense.entity_lifecycle import EntityLifecycleTracker
 from hortense.reporters import JsonlReporter
 from hortense.scanner import run_scan
 
@@ -16,7 +16,7 @@ class ScanDaemon:
         self.config = config or ScanConfig()
         self.reporter = JsonlReporter(self.config.resolve_jsonl_path())
         self.human = HumanReporter(use_color=self.config.use_color)
-        self.lifecycle = RelayLifecycleTracker()
+        self.lifecycle = EntityLifecycleTracker()
         self._seen_ids: set[str] = set()
         self._running = True
 
@@ -34,6 +34,8 @@ class ScanDaemon:
             watch_mode=True,
             quiet_watch=self.config.quiet_watch,
             use_color=self.config.use_color,
+            sync_catalog=self.config.sync_catalog,
+            debug=self.config.debug,
         )
 
         while self._running:

@@ -5,11 +5,12 @@ from pathlib import Path
 
 import click
 
+from hortense.catalog import catalog_update
 from hortense.config import ScanConfig
 from hortense.daemon import ScanDaemon
 from hortense.human_reporter import HumanReporter
 from hortense.reporters import JsonReporter
-from hortense.scanner import has_high_severity, require_windows, run_scan
+from hortense.scanner import catalog_status_report, has_high_severity, require_windows, run_scan
 
 BANNER = """╻ ╻┏━┓┏━┓╺┳╸┏━╸┏┓╻┏━┓┏━╸
 ┣━┫┃ ┃┣┳┛ ┃ ┣╸ ┃┗┫┗━┓┣╸ 
@@ -51,12 +52,16 @@ def main(ctx: click.Context, no_color: bool) -> None:
     help="Path to signatures.yml",
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON array to stdout.")
+@click.option("--debug", is_flag=True, help="Print pipeline stage counts to stderr.")
+@click.option("--sync-catalog", is_flag=True, help="Load merged trust catalog; warn if cache is stale.")
 @click.pass_context
-def scan_cmd(ctx: click.Context, signatures: Path | None, as_json: bool) -> None:
+def scan_cmd(ctx: click.Context, signatures: Path | None, as_json: bool, sync_catalog: bool, debug: bool) -> None:
     """Run a one-shot integrity scan."""
     config = ScanConfig(
         signatures_path=signatures,
         use_color=ctx.obj.get("use_color", True),
+        sync_catalog=sync_catalog,
+        debug=debug,
     )
     events = run_scan(config)
 
@@ -80,12 +85,14 @@ def scan_cmd(ctx: click.Context, signatures: Path | None, as_json: bool) -> None
     help="Path to signatures.yml",
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON array to stdout.")
+@click.option("--sync-catalog", is_flag=True, help="Load merged trust catalog; warn if cache is stale.")
 @click.pass_context
-def check_cmd(ctx: click.Context, signatures: Path | None, as_json: bool) -> None:
+def check_cmd(ctx: click.Context, signatures: Path | None, as_json: bool, sync_catalog: bool) -> None:
     """Exit 1 when any high-severity finding is present."""
     config = ScanConfig(
         signatures_path=signatures,
         use_color=ctx.obj.get("use_color", True),
+        sync_catalog=sync_catalog,
     )
     events = run_scan(config)
 
@@ -117,6 +124,8 @@ def check_cmd(ctx: click.Context, signatures: Path | None, as_json: bool) -> Non
     is_flag=True,
     help="JSONL only; do not print live findings to the terminal.",
 )
+@click.option("--debug", is_flag=True, help="Print pipeline stage counts to stderr.")
+@click.option("--sync-catalog", is_flag=True, help="Load merged trust catalog; warn if cache is stale.")
 @click.pass_context
 def watch_cmd(
     ctx: click.Context,
@@ -124,6 +133,8 @@ def watch_cmd(
     interval: float,
     jsonl: Path | None,
     quiet: bool,
+    sync_catalog: bool,
+    debug: bool,
 ) -> None:
     """Poll continuously; log findings to JSONL and print new hits live."""
     config = ScanConfig(
@@ -133,12 +144,37 @@ def watch_cmd(
         watch_mode=True,
         quiet_watch=quiet,
         use_color=ctx.obj.get("use_color", True),
+        sync_catalog=sync_catalog,
+        debug=debug,
     )
     emit_banner()
     click.echo(f"Watching... logging to {config.resolve_jsonl_path()}")
     if quiet:
         click.echo("Live terminal output disabled (--quiet).")
     ScanDaemon(config).run()
+
+
+@main.group("catalog")
+def catalog_group() -> None:
+    """Manage the local trust catalog cache."""
+
+
+@catalog_group.command("update")
+def catalog_update_cmd() -> None:
+    """Refresh .hortense/trusted_catalog.yml from the bundled seed."""
+    path = catalog_update()
+    click.echo(f"Trust catalog cache updated: {path}")
+
+
+@catalog_group.command("status")
+@click.option(
+    "--signatures",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    help="Path to signatures.yml",
+)
+def catalog_status_cmd(signatures: Path | None) -> None:
+    """Show trust catalog cache age and merge stats."""
+    click.echo(catalog_status_report(signatures))
 
 
 if __name__ == "__main__":

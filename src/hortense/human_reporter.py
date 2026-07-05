@@ -14,6 +14,7 @@ class HumanReporter:
         "high": "red",
         "medium": "yellow",
         "low": "cyan",
+        "cleared": "green",
     }
 
     def __init__(self, stream: TextIO | None = None, use_color: bool = True) -> None:
@@ -23,6 +24,8 @@ class HumanReporter:
 
     def emit(self, event: DetectionEvent) -> None:
         badge = f"[{event.severity.upper()}]"
+        if event.severity == "cleared":
+            badge = "[CLEARED]"
         if self.use_color:
             color = self.SEVERITY_COLORS.get(event.severity, "white")
             badge = click.style(badge, fg=color, bold=True)
@@ -33,6 +36,10 @@ class HumanReporter:
             click.echo(f"  process: {event.process_name} (pid={pid})", file=self.stream)
         if event.window_title:
             click.echo(f"  window: {event.window_title}", file=self.stream)
+        still_active = event.metadata.get("still_active")
+        if isinstance(still_active, list) and still_active:
+            labels = ", ".join(str(item) for item in still_active)
+            click.echo(f"  still active: {labels}", file=self.stream)
         click.echo("", file=self.stream)
 
     def emit_many(self, events: Iterable[DetectionEvent]) -> None:

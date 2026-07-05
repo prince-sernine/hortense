@@ -4,9 +4,8 @@ from hortense.models import DetectionEvent
 from hortense.scanner import (
     _collapse_process_events,
     _collapse_window_events,
-    _correlate_microphone_attribution,
-    _correlate_relay_evidence,
     _dedupe,
+    correlate_by_product_key,
 )
 
 
@@ -17,7 +16,12 @@ def _event(
     process_path: str | None = None,
     process_name: str | None = None,
     match_reason: str = "",
+    product_key: str = "",
+    pid: int | None = None,
 ) -> DetectionEvent:
+    metadata: dict = {"match_reason": match_reason}
+    if product_key:
+        metadata["product_key"] = product_key
     return DetectionEvent(
         id=event_id,
         severity="high",
@@ -26,7 +30,8 @@ def _event(
         detail="test",
         process_path=process_path,
         process_name=process_name,
-        metadata={"match_reason": match_reason},
+        pid=pid,
+        metadata=metadata,
     )
 
 
@@ -38,7 +43,8 @@ def test_dedupe_keeps_single_event_per_id() -> None:
     assert len(_dedupe(events)) == 1
 
 
-def test_collapse_window_events_merges_same_pid_and_title() -> None:
+def test_collapse_window_events_merges_same_product_key_and_title() -> None:
+    pk = r"c:\apps\cluely-v2"
     events = [
         DetectionEvent(
             id="display_affinity:hwnd1:12376",
@@ -51,6 +57,7 @@ def test_collapse_window_events_merges_same_pid_and_title() -> None:
             pid=12376,
             hwnd=1,
             window_title="Cluely",
+            metadata={"product_key": pk},
         ),
         DetectionEvent(
             id="display_affinity:hwnd2:12376",
@@ -63,6 +70,7 @@ def test_collapse_window_events_merges_same_pid_and_title() -> None:
             pid=12376,
             hwnd=2,
             window_title="Cluely",
+            metadata={"product_key": pk},
         ),
     ]
 
@@ -98,16 +106,13 @@ def test_collapse_process_events_merges_same_install_path() -> None:
     assert len(overlay_events) == 1
 
 
-def test_microphone_attribution_upgrades_when_same_host_has_window_evidence() -> None:
+def test_microphone_attribution_upgrades_on_shared_product_key() -> None:
+    pk = r"c:\users\me\appdata\local\lynccontainer"
     events = [
-        DetectionEvent(
-            id="display_affinity:hwnd:10",
-            severity="high",
+        _event(
+            event_id="display_affinity:hwnd:10",
             category="display_affinity",
-            title="Window excluded from screen capture",
-            detail="hidden window",
-            process_name="Lynccontainer.exe",
-            process_path=r"C:\Users\me\AppData\Local\Lynccontainer\Lynccontainer.exe",
+            product_key=pk,
             pid=10,
         ),
         DetectionEvent(
@@ -115,20 +120,19 @@ def test_microphone_attribution_upgrades_when_same_host_has_window_evidence() ->
             severity="medium",
             category="microphone",
             title="Microphone capture attributed to suspicious host",
-            detail="Audio capture is owned by msedgewebview2.exe, but its process tree points to Lynccontainer.exe.",
+            detail="Audio capture is owned by msedgewebview2.exe.",
             process_name="Lynccontainer.exe",
             process_path=r"C:\Users\me\AppData\Local\Lynccontainer\Lynccontainer.exe",
             pid=30,
             metadata={
-                "audio_owner_pid": 30,
-                "audio_owner_process_name": "msedgewebview2.exe",
+                "product_key": pk,
                 "attributed_pid": 10,
                 "confidence": "medium",
             },
         ),
     ]
 
-    correlated = _correlate_microphone_attribution(events)
+    correlated = correlate_by_product_key(events)
     mic = next(event for event in correlated if event.category == "microphone")
 
     assert mic.severity == "high"
@@ -136,15 +140,12 @@ def test_microphone_attribution_upgrades_when_same_host_has_window_evidence() ->
     assert mic.metadata["correlated_categories"] == ["display_affinity"]
 
 
-def test_microphone_attribution_does_not_cross_process_trees() -> None:
+def test_microphone_attribution_does_not_cross_product_clusters() -> None:
     events = [
-        DetectionEvent(
-            id="display_affinity:hwnd:10",
-            severity="high",
+        _event(
+            event_id="display_affinity:hwnd:10",
             category="display_affinity",
-            title="Window excluded from screen capture",
-            detail="hidden window",
-            process_name="Lynccontainer.exe",
+            product_key=r"c:\apps\a",
             pid=10,
         ),
         DetectionEvent(
@@ -152,34 +153,31 @@ def test_microphone_attribution_does_not_cross_process_trees() -> None:
             severity="medium",
             category="microphone",
             title="Unattributed microphone capture during interview session",
-            detail="Non-allowlisted process holds an active audio capture session: SoundRecorder.exe",
+            detail="SoundRecorder.exe",
             process_name="SoundRecorder.exe",
             pid=40,
             metadata={
-                "audio_owner_pid": 40,
-                "audio_owner_process_name": "SoundRecorder.exe",
+                "product_key": r"c:\apps\b",
                 "confidence": "heuristic",
             },
         ),
     ]
 
-    correlated = _correlate_microphone_attribution(events)
+    correlated = correlate_by_product_key(events)
     mic = next(event for event in correlated if event.category == "microphone")
 
     assert mic.severity == "medium"
     assert mic.metadata["confidence"] == "heuristic"
 
 
-def test_relay_correlation_upgrades_when_same_pid_has_process_evidence() -> None:
+def test_relay_correlation_upgrades_on_shared_product_key() -> None:
+    pk = r"c:\apps\weathertracker"
     events = [
-        DetectionEvent(
-            id="process:4242:weatherttracker.exe",
-            severity="high",
+        _event(
+            event_id="process:4242:weatherttracker.exe",
             category="process",
-            title="Known interview-assist process",
-            detail="signature hit",
-            process_name="weatherttracker.exe",
             process_path=r"C:\Apps\WeatherTracker\weatherttracker.exe",
+            product_key=pk,
             pid=4242,
         ),
         DetectionEvent(
@@ -191,11 +189,16 @@ def test_relay_correlation_upgrades_when_same_pid_has_process_evidence() -> None
             process_name="weatherttracker.exe",
             process_path=r"C:\Apps\WeatherTracker\weatherttracker.exe",
             pid=4242,
-            metadata={"signal": "listener", "local_port": 8096, "bind_scope": "all_interfaces"},
+            metadata={
+                "product_key": pk,
+                "signal": "listener",
+                "local_port": 8096,
+                "bind_scope": "all_interfaces",
+            },
         ),
     ]
 
-    correlated = _correlate_relay_evidence(events)
+    correlated = correlate_by_product_key(events)
     relay = next(event for event in correlated if event.category == "stealth_relay")
 
     assert relay.severity == "high"
