@@ -6,6 +6,7 @@ from typing import Iterable
 
 from hortense.config import ScanConfig, Signatures
 from hortense.models import DetectionEvent
+from hortense.relay_lifecycle import RelayLifecycleTracker, is_static_listener_event
 
 
 def require_windows() -> None:
@@ -89,7 +90,7 @@ def _correlate_microphone_attribution(
     events: Iterable[DetectionEvent],
 ) -> list[DetectionEvent]:
     evidence_by_pid: dict[int, set[str]] = {}
-    evidence_categories = {"display_affinity", "overlay", "process"}
+    evidence_categories = {"display_affinity", "overlay", "process", "stealth_relay"}
 
     collected = list(events)
     for event in collected:
@@ -128,7 +129,51 @@ def _correlate_microphone_attribution(
     return correlated
 
 
-def run_scan(config: ScanConfig | None = None) -> list[DetectionEvent]:
+def _correlate_relay_evidence(events: Iterable[DetectionEvent]) -> list[DetectionEvent]:
+    evidence_by_pid: dict[int, set[str]] = {}
+    collected = list(events)
+
+    for event in collected:
+        if event.pid is None:
+            continue
+        if event.category in {"display_affinity", "overlay", "process"}:
+            evidence_by_pid.setdefault(event.pid, set()).add(event.category)
+
+    correlated: list[DetectionEvent] = []
+    for event in collected:
+        if event.category != "stealth_relay":
+            correlated.append(event)
+            continue
+
+        pid = event.pid
+        if pid is None:
+            correlated.append(event)
+            continue
+
+        matched = evidence_by_pid.get(pid)
+        if not matched:
+            correlated.append(event)
+            continue
+
+        metadata = dict(event.metadata)
+        metadata["confidence"] = "strong"
+        metadata["correlated_categories"] = sorted(matched)
+        correlated.append(
+            replace(
+                event,
+                severity="high",
+                title="Suspicious stealth relay correlated with interview-assist evidence",
+                metadata=metadata,
+            )
+        )
+
+    return correlated
+
+
+def run_scan(
+    config: ScanConfig | None = None,
+    lifecycle_tracker: RelayLifecycleTracker | None = None,
+) -> list[DetectionEvent]:
     cfg = config or ScanConfig()
     signatures = cfg.resolve_signatures()
     core = _import_core()
@@ -142,7 +187,22 @@ def run_scan(config: ScanConfig | None = None) -> list[DetectionEvent]:
     events.extend(_normalize(_scan_processes(core, signatures)))
     events.extend(_normalize(_scan_microphone(core, signatures)))
     events.extend(_normalize(_scan_network(core, signatures)))
+    relay_events = _normalize(_scan_stealth_relays(core, signatures))
+    events.extend(relay_events)
+
+    interview_active = bool(core.interview_session_active(signatures.interview_processes))
+
+    if cfg.watch_mode and lifecycle_tracker is not None:
+        listener_events = [e for e in relay_events if is_static_listener_event(e)]
+        lifecycle = lifecycle_tracker.update(
+            listener_events,
+            interview_active=interview_active,
+        )
+        events = [e for e in events if not is_static_listener_event(e)]
+        events.extend(lifecycle)
+
     events = _correlate_microphone_attribution(events)
+    events = _correlate_relay_evidence(events)
     collapsed = _collapse_window_events(_collapse_process_events(_dedupe(events)))
     return sorted(collapsed, key=lambda e: (-e.score, e.category, e.id))
 
@@ -174,6 +234,20 @@ def _scan_network(core, signatures: Signatures) -> list[dict]:
         signatures.allowlist_processes,
         signatures.allowlist_path_substrings,
         signatures.interview_processes,
+    )
+
+
+def _scan_stealth_relays(core, signatures: Signatures) -> list[dict]:
+    return core.scan_stealth_relays(
+        signatures.allowlist_processes,
+        signatures.allowlist_path_substrings,
+        signatures.interview_processes,
+        signatures.trust_publishers,
+        signatures.companion_processes,
+        signatures.trust_path_prefixes,
+        signatures.suspicious_path_prefixes,
+        signatures.process_names,
+        signatures.path_substrings,
     )
 
 

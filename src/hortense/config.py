@@ -35,6 +35,10 @@ class Signatures:
     process_tree_roots: list[str]
     network_domains: list[str]
     interview_processes: list[str]
+    trust_publishers: list[str]
+    companion_processes: list[str]
+    trust_path_prefixes: list[str]
+    suspicious_path_prefixes: list[str]
 
     @classmethod
     def load(cls, path: Path | None = None) -> Signatures:
@@ -56,6 +60,10 @@ class Signatures:
             process_tree_roots=list(data.get("process_tree_roots") or []),
             network_domains=list(data.get("network_domains") or []),
             interview_processes=list(data.get("interview_processes") or []),
+            trust_publishers=list(data.get("trust_publishers") or []),
+            companion_processes=list(data.get("companion_processes") or []),
+            trust_path_prefixes=list(data.get("trust_path_prefixes") or []),
+            suspicious_path_prefixes=list(data.get("suspicious_path_prefixes") or []),
         )
 
 
@@ -64,6 +72,9 @@ class ScanConfig:
     signatures_path: Path | None = None
     poll_interval_sec: float = 2.0
     jsonl_path: Path | None = None
+    watch_mode: bool = False
+    quiet_watch: bool = False
+    use_color: bool = True
 
     def resolve_signatures(self) -> Signatures:
         return Signatures.load(self.signatures_path)

@@ -63,3 +63,37 @@ def test_default_jsonl_path_is_project_local() -> None:
 def test_explicit_jsonl_path_overrides_default(tmp_path: Path) -> None:
     path = tmp_path / "custom.jsonl"
     assert ScanConfig(jsonl_path=path).resolve_jsonl_path() == path
+
+
+def test_signatures_load_trust_tiers(tmp_path: Path) -> None:
+    source = tmp_path / "signatures.yml"
+    source.write_text(
+        yaml.safe_dump(
+            {
+                "trust_publishers": ["Zoom Video Communications, Inc."],
+                "companion_processes": ["zoom.exe"],
+                "trust_path_prefixes": ["\\program files\\zoom\\"],
+                "suspicious_path_prefixes": ["\\appdata\\local\\weatherttracker\\"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    sig = Signatures.load(source)
+    assert "Zoom Video Communications, Inc." in sig.trust_publishers
+    assert "zoom.exe" in sig.companion_processes
+    assert any("weatherttracker" in entry for entry in sig.suspicious_path_prefixes)
+
+
+def test_default_signatures_include_weather_tracker_coverage() -> None:
+    sig = Signatures.load(Path("configs/signatures.yml"))
+    assert "weatherttracker" in sig.process_names
+    assert any("weatherttracker" in entry for entry in sig.path_substrings)
+
+
+def test_default_signatures_include_interview_man_coverage() -> None:
+    sig = Signatures.load(Path("configs/signatures.yml"))
+    assert "interviewman" in sig.process_names
+    assert "interview man" in sig.process_names
+    assert any("interviewman" in entry for entry in sig.path_substrings)
+    assert "interviewman" in sig.process_tree_roots

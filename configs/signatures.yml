@@ -182,13 +182,19 @@ process_names:
 
   - cluely
 
-  - interviewcoder
+  - interviewman
+
+  - interview man
 
   - lockedin
 
   - lynccontainer
 
   - linkjobai
+
+  - weatherttracker
+
+  - weather tracker
 
 
 
@@ -208,6 +214,14 @@ path_substrings:
 
   - aihirely
 
+  - weatherttracker
+
+  - weather tracker
+
+  - interviewman
+
+  - interview man
+
 
 
 # Install roots use path segment matching (see hortense-core util.rs).
@@ -223,6 +237,12 @@ process_tree_roots:
   - linkjobai
 
   - com.aihirely.linkjobai
+
+  - weatherttracker
+
+  - weathertracker
+
+  - interviewman
 
 
 
@@ -253,5 +273,165 @@ interview_processes:
   - slack.exe
 
   - skype.exe
+
+
+
+# Relay trust tiers (v0.3). Signed != trusted; substring match on Authenticode publisher CN/O.
+
+trust_publishers:
+
+  - Microsoft Corporation
+
+  - Microsoft Windows
+
+  - Google LLC
+
+  - Google Inc
+
+  - Apple Inc.
+
+  - Zoom Video Communications, Inc.
+
+  - Zoom Communications, Inc.
+
+  - Cisco Systems, Inc.
+
+  - Webex LLC
+
+  - Slack Technologies, LLC
+
+  - Slack Technologies, Inc.
+
+  - Discord Inc.
+
+  - RingCentral, Inc.
+
+  - GoTo Group, Inc.
+
+  - Amazon.com Services LLC
+
+  - Salesforce, Inc.
+
+  - VMware, Inc.
+
+  - Broadcom Inc.
+
+  - Citrix Systems, Inc.
+
+  - NVIDIA CORPORATION
+
+  - Advanced Micro Devices, Inc.
+
+  - Intel Corporation
+
+  - OBS Project, LLC
+
+  - Logitech Inc
+
+  - AVAST Software s.r.o.
+
+  - Avast Software s.r.o.
+
+  - Gen Digital Inc.
+
+  - NortonLifeLock Inc.
+
+  - Malwarebytes Corporation
+
+  - ESET, spol. s r.o.
+
+  - Kaspersky Lab
+
+  - Samsung Electronics Co., Ltd
+
+  - Screenovate Technologies Ltd.
+
+  - Docker Inc
+
+
+
+# Phone/device sync tools. May relay during calls; suppress stealth relay lifecycle noise.
+
+companion_processes:
+
+  - PhoneExperienceHost.exe
+
+  - YourPhone.exe
+
+  - CrossDeviceService.exe
+
+  - CrossDeviceResume.exe
+
+  - CrossDeviceSettingsHost.exe
+
+  - kdeconnectd.exe
+
+  - kdeconnect-app.exe
+
+  - kdeconnect-indicator.exe
+
+  - QuickShare.exe
+
+  - IntelUnisonClient.exe
+
+  - IntelUnison.exe
+
+  - DellMobileConnect.exe
+
+  - DellMobileConnectClient.exe
+
+  - QuickShareService.exe
+
+
+
+trust_path_prefixes:
+
+  - \windows\
+
+  - \windows\system32\
+
+  - \windows\syswow64\
+
+  - \windows\winsxs\
+
+  - \windows\systemapps\
+
+  - \windows\immersivecontrolpanel\
+
+  - \program files\
+
+  - \program files (x86)\
+
+  - \programdata\microsoft\
+
+  - \program files\windowsapps\
+
+
+
+suspicious_path_prefixes:
+
+  - \appdata\local\
+
+  - \appdata\local\programs\
+
+  - \appdata\roaming\
+
+  - \appdata\locallow\
+
+  - \users\public\
+
+  - \temp\
+
+  - \tmp\
+
+  - \downloads\
+
+  - \desktop\
+
+  - \documents\
+
+  - \onedrive\
+
+  - \recycle.bin\
 
 

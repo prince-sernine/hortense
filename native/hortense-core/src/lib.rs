@@ -105,6 +105,50 @@ fn scan_network(
     events_to_py(py, events)
 }
 
+#[pyfunction]
+fn interview_session_active(interview_processes: Vec<String>) -> bool {
+    win32::interview::session_active(&interview_processes)
+}
+
+#[pyfunction]
+#[pyo3(signature = (
+    allowlist,
+    allowlist_path_substrings,
+    interview_processes,
+    trust_publishers,
+    companion_processes,
+    trust_path_prefixes,
+    suspicious_path_prefixes,
+    process_names,
+    path_substrings,
+))]
+fn scan_stealth_relays(
+    py: Python<'_>,
+    allowlist: Vec<String>,
+    allowlist_path_substrings: Vec<String>,
+    interview_processes: Vec<String>,
+    trust_publishers: Vec<String>,
+    companion_processes: Vec<String>,
+    trust_path_prefixes: Vec<String>,
+    suspicious_path_prefixes: Vec<String>,
+    process_names: Vec<String>,
+    path_substrings: Vec<String>,
+) -> PyResult<Vec<Py<PyAny>>> {
+    let config = win32::relay::RelayScanConfig {
+        allowlist: &allowlist,
+        allowlist_path_substrings: &allowlist_path_substrings,
+        interview_processes: &interview_processes,
+        trust_publishers: &trust_publishers,
+        companion_processes: &companion_processes,
+        trust_path_prefixes: &trust_path_prefixes,
+        suspicious_path_prefixes: &suspicious_path_prefixes,
+        process_names: &process_names,
+        path_substrings: &path_substrings,
+    };
+    let events = win32::relay::scan(config);
+    events_to_py(py, events)
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(platform, m)?)?;
@@ -113,5 +157,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(scan_processes, m)?)?;
     m.add_function(wrap_pyfunction!(scan_microphone_sessions, m)?)?;
     m.add_function(wrap_pyfunction!(scan_network, m)?)?;
+    m.add_function(wrap_pyfunction!(interview_session_active, m)?)?;
+    m.add_function(wrap_pyfunction!(scan_stealth_relays, m)?)?;
     Ok(())
 }

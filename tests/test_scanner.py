@@ -5,6 +5,7 @@ from hortense.scanner import (
     _collapse_process_events,
     _collapse_window_events,
     _correlate_microphone_attribution,
+    _correlate_relay_evidence,
     _dedupe,
 )
 
@@ -167,3 +168,36 @@ def test_microphone_attribution_does_not_cross_process_trees() -> None:
 
     assert mic.severity == "medium"
     assert mic.metadata["confidence"] == "heuristic"
+
+
+def test_relay_correlation_upgrades_when_same_pid_has_process_evidence() -> None:
+    events = [
+        DetectionEvent(
+            id="process:4242:weatherttracker.exe",
+            severity="high",
+            category="process",
+            title="Known interview-assist process",
+            detail="signature hit",
+            process_name="weatherttracker.exe",
+            process_path=r"C:\Apps\WeatherTracker\weatherttracker.exe",
+            pid=4242,
+        ),
+        DetectionEvent(
+            id="stealth_relay:listener:4242:8096",
+            severity="medium",
+            category="stealth_relay",
+            title="Suspicious TCP listener during interview session",
+            detail="listening on 8096",
+            process_name="weatherttracker.exe",
+            process_path=r"C:\Apps\WeatherTracker\weatherttracker.exe",
+            pid=4242,
+            metadata={"signal": "listener", "local_port": 8096, "bind_scope": "all_interfaces"},
+        ),
+    ]
+
+    correlated = _correlate_relay_evidence(events)
+    relay = next(event for event in correlated if event.category == "stealth_relay")
+
+    assert relay.severity == "high"
+    assert relay.metadata["confidence"] == "strong"
+    assert relay.metadata["correlated_categories"] == ["process"]

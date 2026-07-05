@@ -7,6 +7,7 @@ import click
 
 from hortense.config import ScanConfig
 from hortense.daemon import ScanDaemon
+from hortense.human_reporter import HumanReporter
 from hortense.reporters import JsonReporter
 from hortense.scanner import has_high_severity, require_windows, run_scan
 
@@ -17,7 +18,6 @@ ASCII_BANNER = "HORTENSE"
 
 
 def emit_banner() -> None:
-    # The mark should announce Hortense, never break the scan.
     encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
     try:
         BANNER.encode(encoding)
@@ -29,11 +29,19 @@ def emit_banner() -> None:
     click.echo("")
 
 
+def _resolve_color(no_color: bool) -> bool:
+    return not no_color
+
+
 @click.group()
+@click.option("--no-color", is_flag=True, help="Disable ANSI severity colors.")
+@click.pass_context
 @click.version_option(package_name="hortense")
-def main() -> None:
+def main(ctx: click.Context, no_color: bool) -> None:
     """Windows interview-integrity scanner (CLI)."""
     require_windows()
+    ctx.ensure_object(dict)
+    ctx.obj["use_color"] = _resolve_color(no_color)
 
 
 @main.command("scan")
@@ -43,9 +51,13 @@ def main() -> None:
     help="Path to signatures.yml",
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON array to stdout.")
-def scan_cmd(signatures: Path | None, as_json: bool) -> None:
+@click.pass_context
+def scan_cmd(ctx: click.Context, signatures: Path | None, as_json: bool) -> None:
     """Run a one-shot integrity scan."""
-    config = ScanConfig(signatures_path=signatures)
+    config = ScanConfig(
+        signatures_path=signatures,
+        use_color=ctx.obj.get("use_color", True),
+    )
     events = run_scan(config)
 
     if as_json:
@@ -58,14 +70,7 @@ def scan_cmd(signatures: Path | None, as_json: bool) -> None:
         click.echo("No findings.")
         return
 
-    for event in events:
-        click.echo(f"[{event.severity.upper()}] {event.title}")
-        click.echo(f"  {event.detail}")
-        if event.process_name:
-            click.echo(f"  process: {event.process_name} (pid={event.pid})")
-        if event.window_title:
-            click.echo(f"  window: {event.window_title}")
-        click.echo("")
+    HumanReporter(use_color=config.use_color).emit_many(events)
 
 
 @main.command("check")
@@ -75,9 +80,13 @@ def scan_cmd(signatures: Path | None, as_json: bool) -> None:
     help="Path to signatures.yml",
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON array to stdout.")
-def check_cmd(signatures: Path | None, as_json: bool) -> None:
+@click.pass_context
+def check_cmd(ctx: click.Context, signatures: Path | None, as_json: bool) -> None:
     """Exit 1 when any high-severity finding is present."""
-    config = ScanConfig(signatures_path=signatures)
+    config = ScanConfig(
+        signatures_path=signatures,
+        use_color=ctx.obj.get("use_color", True),
+    )
     events = run_scan(config)
 
     if as_json:
@@ -103,15 +112,32 @@ def check_cmd(signatures: Path | None, as_json: bool) -> None:
     type=click.Path(path_type=Path),
     help="Append findings to this JSONL file.",
 )
-def watch_cmd(signatures: Path | None, interval: float, jsonl: Path | None) -> None:
-    """Poll continuously and append findings to JSONL."""
+@click.option(
+    "--quiet",
+    is_flag=True,
+    help="JSONL only; do not print live findings to the terminal.",
+)
+@click.pass_context
+def watch_cmd(
+    ctx: click.Context,
+    signatures: Path | None,
+    interval: float,
+    jsonl: Path | None,
+    quiet: bool,
+) -> None:
+    """Poll continuously; log findings to JSONL and print new hits live."""
     config = ScanConfig(
         signatures_path=signatures,
         poll_interval_sec=interval,
         jsonl_path=jsonl,
+        watch_mode=True,
+        quiet_watch=quiet,
+        use_color=ctx.obj.get("use_color", True),
     )
     emit_banner()
     click.echo(f"Watching... logging to {config.resolve_jsonl_path()}")
+    if quiet:
+        click.echo("Live terminal output disabled (--quiet).")
     ScanDaemon(config).run()
 
 

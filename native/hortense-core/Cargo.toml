@@ -1,6 +1,6 @@
 [package]
 name = "hortense-core"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Win32 detection primitives for Hortense"
 
@@ -23,4 +23,6 @@ windows = { version = "0.58", features = [
     "Win32_Media_Audio",
     "Win32_Media_Audio_Endpoints",
     "Win32_System_Com",
+    "Win32_Security_Cryptography",
+    "Win32_Security_WinTrust",
 ] }

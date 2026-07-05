@@ -10,7 +10,7 @@ Build it yourself. Never run a stranger's binary.
 
 ## What Hortense catches
 
-Hortense runs five scans and reads them together. Display affinity on visible windows, `WDA_EXCLUDEFROMCAPTURE` and `WDA_MONITOR`. Overlay heuristics for layered, topmost, click-through windows that cover real screen. A process walk across name and path signatures, install-tree roots, and children spawned from a flagged parent. While Zoom, Teams, or Chrome is in a call, it notes which process holds the microphone and which opens connections to the AI endpoints in `configs/signatures.yml`.
+Hortense runs six scans and reads them together. Display affinity on visible windows, `WDA_EXCLUDEFROMCAPTURE` and `WDA_MONITOR`. Overlay heuristics for layered, topmost, click-through windows that cover real screen. A process walk across name and path signatures, install-tree roots, and children spawned from a flagged parent. While Zoom, Teams, or Chrome is in a call, it notes which process holds the microphone and which opens connections to the AI endpoints in `configs/signatures.yml`. During the same interview window it also reads the IPv4 TCP owner table for suspicious local listeners and intranet peers: the PC-to-phone relay shape used by tools like Interview Man and Weather Tracker.
 
 It is deliberate about silence. Known interview apps and trusted install paths sit on an allowlist, so a video call using your microphone is never mistaken for evidence. System processes too. That restraint took real work, and it matters. A tool that cries wolf is a tool no one runs twice.
 
@@ -53,6 +53,7 @@ GPU and compositor evasion get most of the noise, so read the problem as a strai
 | Pipes audio out during the call | Correlates microphone ownership with an active interview | Live |
 | Moves audio capture into WebView2 or another helper process | Attributes the audio owner through parent process and install-tree ancestry before judging the host | Live |
 | Calls a model over the network | Watches connections to known AI endpoints | Live |
+| Runs a local TCP relay for a phone or second device during the call | Scans IPv4 listeners and RFC1918/CGNAT peers while interview apps are active; Authenticode publisher, path trust tiers, and correlation with overlay/process evidence | Live |
 | Moves network traffic to QUIC, UDP, or short-lived relay sockets | UDP owner tables, DNS/ETW history, and rolling timing buffers | Planned |
 | Uses a DirectComposition or D3D layer that slips past simple heuristics | Compares standard duplication against a deeper per-window read | Planned |
 | Spoofs the affinity flag so the query itself lies | The same discrepancy check: what capture sees against what the window shows | Planned |
@@ -69,6 +70,8 @@ Helper processes are part of that bargain. WebView2 is not guilty by itself; hal
 The cleanest network trick is to look boring.
 
 Today Hortense reads the Windows IPv4 TCP owner table while an interview app is active: process, remote IP, remote port, active socket. It resolves the AI domains in `configs/signatures.yml` and looks for a process on this machine talking to one of them. A tool that calls `api.openai.com` in the open is not subtle. It leaves its address on the desk.
+
+The PC-to-phone relay is a different costume with the same goal. Interview Man (standard) and Weather Tracker (generic white-label) listen on a local port (often `:8096`) and accept connections from a phone on the same Wi-Fi. The model call may never leave the LAN. Hortense v0.3 watches for that shape: a non-trusted process binding a listener during an interview, especially on all interfaces, plus established peers on RFC1918 or CGNAT ranges. Authenticode publisher strings and install-path trust tiers keep Zoom and Teams from being mistaken for a relay. In `watch` mode, listeners emit lifecycle events (`appeared`, `gone`, `returned`) instead of spamming the same static finding every poll.
 
 The better lie moves the address, not the act. It sends the request through a relay, a SaaS endpoint, a CDN edge, or a vendor backend. It uses QUIC over UDP instead of TCP. It opens a socket for half a breath and closes it between polls. TLS keeps the payload sealed, as it should. The mistake is thinking the payload was the only evidence.
 

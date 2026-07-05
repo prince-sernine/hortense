@@ -6,9 +6,9 @@
 ╹ ╹┗━┛╹┗╸ ╹ ┗━╸╹ ╹┗━┛┗━╸
 ```
 
-Windows interview-integrity research tool. Detects screen-capture exclusion, suspicious overlays, known process signatures, microphone capture during interview apps, and outbound AI API connections.
+Windows interview-integrity research tool. Detects screen-capture exclusion, suspicious overlays, known process signatures, microphone capture during interview apps, outbound AI API connections, and PC-to-phone stealth relay listeners.
 
-Hortense looks for the Win32 traces behind interview-assist overlays: `WDA_EXCLUDEFROMCAPTURE`, screen-share invisible windows, click-through overlays, microphone capture, helper-owned WebView2 audio, and process trees tied to tools like Cluely, Parakeet, and LinkJobAI. The point is simple: compare what the call can see with what Windows knows is actually on the machine.
+Hortense looks for the Win32 traces behind interview-assist overlays: `WDA_EXCLUDEFROMCAPTURE`, screen-share invisible windows, click-through overlays, microphone capture, helper-owned WebView2 audio, local TCP relay listeners (Interview Man / Weather Tracker class), and process trees tied to tools like Cluely, Parakeet, and LinkJobAI. Interview Man is the standard ghost-relay product; Weather Tracker is its generic white-label build. The point is simple: compare what the call can see with what Windows knows is actually on the machine.
 
 **Platform:** Windows only (CLI). Build from source; no prebuilt trust required.
 
@@ -21,10 +21,11 @@ Hortense looks for the Win32 traces behind interview-assist overlays: `WDA_EXCLU
 | Process signatures | Live | Name, path, install-tree roots, child processes |
 | Microphone correlation | Live | Mic capture during an interview call, including WebView2 audio when ancestry points back to a suspicious host |
 | Network correlation | Live | Connections to the AI endpoints in `configs/signatures.yml` |
+| Stealth relay (PC-to-phone link) | Live | TCP listeners and intranet peers during interview sessions, with Authenticode/path trust tiers and lifecycle in `watch` |
 | Allowlist suppression | Live | Zoom, Teams, Chrome and system processes excluded by design |
 | Capture-path discrepancy | Planned | DXGI duplication against a deeper per-window read |
 | Browser/test attestation | Planned | Local companion verifies meeting app, test browser, and capture path agree |
-| Relay / API piggybacking | Planned | Model calls tunneled through innocent-looking relay hosts; answered by owner attribution and timing, not destination alone |
+| Relay / API piggybacking | Partial | Direct model endpoints are live; relay piggybacking on trusted hosts is planned for v0.4 |
 | UDP / QUIC network paths | Planned | UDP owner tables, DNS/ETW history, and rolling timing buffers for short-lived sockets |
 | GPU scanout / vendor APIs | Boundary only | No vendor/kernel framebuffer access; future discrepancy checks can catch visible effects |
 | Kernel-level evasion | Boundary only | No kernel agent; user-mode checks can still flag capture/window mismatches |
@@ -98,8 +99,10 @@ python -m pytest tests
 |---------|---------|
 | `hortense scan` | One-shot human-readable report |
 | `hortense scan --json` | JSON findings array |
+| `hortense scan --no-color` | Plain terminal output (no ANSI severity colors) |
 | `hortense check --json` | Exit code 1 on high-severity hits |
-| `hortense watch` | Background poll; append JSONL to `.hortense/events.jsonl` |
+| `hortense watch` | Background poll; append JSONL to `.hortense/events.jsonl` and print new hits live |
+| `hortense watch --quiet` | JSONL only; suppress live terminal output |
 | `hortense watch --interval 1 --jsonl path\to\events.jsonl` | Custom poll interval and log path |
 
 ## Configuration
