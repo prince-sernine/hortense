@@ -1,4 +1,4 @@
-# Bundled trust seed for Hortense v0.3.1 (Tier 1 AV + essentials).
+# Bundled trust seed for Hortense v0.3.2 (Tier 1 AV + essentials).
 # Local cache: .hortense/trusted_catalog.yml (from `hortense catalog update`)
 # User overrides: .hortense/catalog_overrides.yml
 
@@ -41,4 +41,17 @@ cloud_sync_path_prefixes:
   - \appdata\local\microsoft\onedrive\
   - \appdata\local\google\drive fs\
 
-processes: []
+# Process rules are scoped on purpose. A known publisher is not enough by itself:
+# keep name, signer, path, source, and expected behavior together.
+processes:
+  - name: Spotify.exe
+    category: media_connect
+    source: observed_spotify_connect_appdata_install
+    risk_note: Signed Spotify may open local/LAN listener shapes for Connect. Unsigned or wrong-publisher builds stay anomalies.
+    publishers:
+      - Spotify AB
+      - Spotify USA Inc
+    path_prefixes:
+      - \appdata\roaming\spotify\
+    expected_listener: lan_media_control
+    expected_network_shape: local_or_lan_connect

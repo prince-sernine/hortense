@@ -77,6 +77,7 @@ class ScanConfig:
     use_color: bool = True
     sync_catalog: bool = False
     debug: bool = False
+    watch_dashboard: bool | None = None
 
     def resolve_signatures(self) -> Signatures:
         return Signatures.load(self.signatures_path)

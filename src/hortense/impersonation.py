@@ -96,6 +96,7 @@ def impersonation_events(
 
         metadata = dict(event.metadata)
         metadata["impersonation"] = True
+        metadata["impersonated_name"] = canonical
         metadata["confidence"] = "strong"
         upgraded.append(
             DetectionEvent(

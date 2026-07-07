@@ -6,6 +6,8 @@ from typing import Iterable, TextIO
 
 import click
 
+from hortense.entity import format_process_identity, render_detail_line
+from hortense.entity_lifecycle import format_signal_label
 from hortense.models import DetectionEvent
 
 
@@ -30,15 +32,15 @@ class HumanReporter:
             color = self.SEVERITY_COLORS.get(event.severity, "white")
             badge = click.style(badge, fg=color, bold=True)
         click.echo(f"{badge} {event.title}", file=self.stream)
-        click.echo(f"  {event.detail}", file=self.stream)
-        if event.process_name:
-            pid = event.pid if event.pid is not None else "?"
-            click.echo(f"  process: {event.process_name} (pid={pid})", file=self.stream)
+        click.echo(f"  {render_detail_line(event)}", file=self.stream)
+        identity = format_process_identity(event)
+        if identity:
+            click.echo(f"  {identity}", file=self.stream)
         if event.window_title:
             click.echo(f"  window: {event.window_title}", file=self.stream)
         still_active = event.metadata.get("still_active")
         if isinstance(still_active, list) and still_active:
-            labels = ", ".join(str(item) for item in still_active)
+            labels = ", ".join(format_signal_label(str(item)) for item in still_active)
             click.echo(f"  still active: {labels}", file=self.stream)
         click.echo("", file=self.stream)
 

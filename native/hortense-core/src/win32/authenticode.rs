@@ -16,6 +16,9 @@ use windows::Win32::Security::WinTrust::{
 
 use super::util::normalize_token;
 
+const CERT_NAME_ATTR_TYPE_VALUE: u32 = 3;
+const COMMON_NAME_OID: &[u8] = b"2.5.4.3\0";
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PublisherInfo {
     pub publisher: Option<String>,
@@ -109,12 +112,26 @@ unsafe fn verify_authenticode(wide_path: &[u16]) -> bool {
 }
 
 unsafe fn cert_subject_display(cert_context: *const CERT_CONTEXT) -> Option<String> {
+    cert_name(cert_context, CERT_NAME_SIMPLE_DISPLAY_TYPE, None).or_else(|| {
+        cert_name(
+            cert_context,
+            CERT_NAME_ATTR_TYPE_VALUE,
+            Some(COMMON_NAME_OID.as_ptr().cast()),
+        )
+    })
+}
+
+unsafe fn cert_name(
+    cert_context: *const CERT_CONTEXT,
+    name_type: u32,
+    type_para: Option<*const core::ffi::c_void>,
+) -> Option<String> {
     let mut buffer = vec![0u16; 512];
     let len = CertGetNameStringW(
         cert_context,
-        CERT_NAME_SIMPLE_DISPLAY_TYPE,
+        name_type,
         0,
-        None,
+        type_para,
         Some(&mut buffer),
     );
     if len <= 1 {

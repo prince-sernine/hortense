@@ -10,7 +10,6 @@ use windows::Win32::NetworkManagement::IpHelper::{
 
 use crate::event::{new_id, DetectionEvent};
 use super::authenticode::{publisher_from_path, publisher_matches_trusted, PublisherInfo};
-use super::interview::session_active;
 use super::util::{
     is_allowlisted, normalize_path, path_matches_any, process_image_path, process_name_equals,
 };
@@ -49,20 +48,25 @@ struct RelayTarget {
 pub struct RelayScanConfig<'a> {
     pub allowlist: &'a [String],
     pub allowlist_path_substrings: &'a [String],
+    // Kept for call-site/signature stability. Relays are no longer meeting-gated in
+    // native code; surfacing is decided in Python (scanner._surface_relays).
+    #[allow(dead_code)]
     pub interview_processes: &'a [String],
     pub trust_publishers: &'a [String],
+    pub tier2_publishers: &'a [String],
     pub companion_processes: &'a [String],
     pub trust_path_prefixes: &'a [String],
     pub suspicious_path_prefixes: &'a [String],
     pub process_names: &'a [String],
     pub path_substrings: &'a [String],
+    pub process_rules: &'a [String],
 }
 
 pub fn scan(config: RelayScanConfig<'_>) -> Vec<DetectionEvent> {
-    if !session_active(config.interview_processes) {
-        return Vec::new();
-    }
-
+    // Relays are always scanned. Surfacing is decided in Python (scanner.run_scan):
+    // meeting-active or the owning product cluster is a retained tier (anomaly/threat).
+    // `interview_processes` stays on the config for signature stability but is no longer
+    // a hard gate here.
     let mut events = Vec::new();
     let mut seen_listeners = HashSet::new();
     let mut seen_peers = HashSet::new();
@@ -338,6 +342,10 @@ fn evaluate_trust(
         return (RelayTrustAction::Downgrade, "unknown");
     }
 
+    if is_tier2_consumer_process(target, config) {
+        return (RelayTrustAction::Suppress, "tier2-consumer");
+    }
+
     if trusted_pub && trusted_path && !suspicious_path {
         return (RelayTrustAction::Suppress, "trusted");
     }
@@ -348,6 +356,26 @@ fn evaluate_trust(
         return (RelayTrustAction::Flag, "suspicious");
     }
     (RelayTrustAction::Flag, "unknown")
+}
+
+fn is_tier2_consumer_process(target: &RelayTarget, config: &RelayScanConfig<'_>) -> bool {
+    if !target.publisher.signature_valid {
+        return false;
+    }
+    let publisher = target.publisher.publisher.as_deref();
+    if !publisher_matches_trusted(publisher, config.tier2_publishers) {
+        return false;
+    }
+
+    config.process_rules.iter().any(|rule| {
+        let mut parts = rule.splitn(3, '\t');
+        let name = parts.next().unwrap_or_default();
+        let publisher_rule = parts.next().unwrap_or_default();
+        let path_prefix = parts.next().unwrap_or_default();
+        process_name_equals(&target.name, name)
+            && publisher_matches_trusted(publisher, &[publisher_rule.to_string()])
+            && path_is_trusted(&target.path, &[path_prefix.to_string()])
+    })
 }
 
 fn is_companion_process(
@@ -615,5 +643,95 @@ mod tests {
         assert!(is_nearby_peer("172.16.0.2"));
         assert!(is_nearby_peer("100.64.0.1"));
         assert!(!is_nearby_peer("8.8.8.8"));
+    }
+
+    #[test]
+    fn tier2_consumer_spotify_suppresses_appdata_listener() {
+        let allowlist = vec![];
+        let allow_paths = vec![];
+        let interview = vec![];
+        let trust_publishers = vec!["Spotify AB".to_string()];
+        let tier2 = vec!["Spotify AB".to_string()];
+        let companion = vec![];
+        let trust_paths = vec![r"\program files\".to_string()];
+        let suspicious = vec![r"\appdata\roaming\".to_string()];
+        let process_names = vec!["weatherttracker.exe".to_string()];
+        let path_substrings = vec![r"\weathertracker\".to_string()];
+        let rules = vec![format!(
+            "{}\t{}\t{}",
+            "Spotify.exe", "Spotify AB", r"\appdata\roaming\spotify\"
+        )];
+        let config = RelayScanConfig {
+            allowlist: &allowlist,
+            allowlist_path_substrings: &allow_paths,
+            interview_processes: &interview,
+            trust_publishers: &trust_publishers,
+            tier2_publishers: &tier2,
+            companion_processes: &companion,
+            trust_path_prefixes: &trust_paths,
+            suspicious_path_prefixes: &suspicious,
+            process_names: &process_names,
+            path_substrings: &path_substrings,
+            process_rules: &rules,
+        };
+        let target = RelayTarget {
+            name: "Spotify.exe".into(),
+            path: r"C:\Users\me\AppData\Roaming\Spotify\Spotify.exe".into(),
+            publisher: PublisherInfo {
+                publisher: Some("Spotify AB".into()),
+                signed: true,
+                signature_valid: true,
+            },
+        };
+
+        assert_eq!(
+            evaluate_trust(&target, &config),
+            (RelayTrustAction::Suppress, "tier2-consumer")
+        );
+    }
+
+    #[test]
+    fn fake_spotify_does_not_suppress() {
+        let allowlist = vec![];
+        let allow_paths = vec![];
+        let interview = vec![];
+        let trust_publishers = vec!["Spotify AB".to_string()];
+        let tier2 = vec!["Spotify AB".to_string()];
+        let companion = vec![];
+        let trust_paths = vec![r"\program files\".to_string()];
+        let suspicious = vec![r"\appdata\roaming\".to_string()];
+        let process_names = vec![];
+        let path_substrings = vec![];
+        let rules = vec![format!(
+            "{}\t{}\t{}",
+            "Spotify.exe", "Spotify AB", r"\appdata\roaming\spotify\"
+        )];
+        let config = RelayScanConfig {
+            allowlist: &allowlist,
+            allowlist_path_substrings: &allow_paths,
+            interview_processes: &interview,
+            trust_publishers: &trust_publishers,
+            tier2_publishers: &tier2,
+            companion_processes: &companion,
+            trust_path_prefixes: &trust_paths,
+            suspicious_path_prefixes: &suspicious,
+            process_names: &process_names,
+            path_substrings: &path_substrings,
+            process_rules: &rules,
+        };
+        let target = RelayTarget {
+            name: "Spotifiy.exe".into(),
+            path: r"C:\Users\me\AppData\Roaming\Spotify\Spotifiy.exe".into(),
+            publisher: PublisherInfo {
+                publisher: None,
+                signed: false,
+                signature_valid: false,
+            },
+        };
+
+        assert_eq!(
+            evaluate_trust(&target, &config),
+            (RelayTrustAction::Flag, "suspicious")
+        );
     }
 }

@@ -126,6 +126,11 @@ def check_cmd(ctx: click.Context, signatures: Path | None, as_json: bool, sync_c
 )
 @click.option("--debug", is_flag=True, help="Print pipeline stage counts to stderr.")
 @click.option("--sync-catalog", is_flag=True, help="Load merged trust catalog; warn if cache is stale.")
+@click.option(
+    "--dashboard/--no-dashboard",
+    default=None,
+    help="Use the full-screen watch TUI when stdout is a TTY.",
+)
 @click.pass_context
 def watch_cmd(
     ctx: click.Context,
@@ -135,6 +140,7 @@ def watch_cmd(
     quiet: bool,
     sync_catalog: bool,
     debug: bool,
+    dashboard: bool | None,
 ) -> None:
     """Poll continuously; log findings to JSONL and print new hits live."""
     config = ScanConfig(
@@ -146,9 +152,14 @@ def watch_cmd(
         use_color=ctx.obj.get("use_color", True),
         sync_catalog=sync_catalog,
         debug=debug,
+        watch_dashboard=dashboard,
     )
-    emit_banner()
-    click.echo(f"Watching... logging to {config.resolve_jsonl_path()}")
+    dashboard_enabled = dashboard
+    if dashboard_enabled is None:
+        dashboard_enabled = sys.stdout.isatty() and not quiet and not debug
+    if not dashboard_enabled:
+        emit_banner()
+        click.echo(f"Watching... logging to {config.resolve_jsonl_path()}")
     if quiet:
         click.echo("Live terminal output disabled (--quiet).")
     ScanDaemon(config).run()
