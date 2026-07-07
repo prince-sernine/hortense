@@ -52,8 +52,8 @@ This is local evidence from `hortense watch`: product cluster, relay listener, c
 
 Field runs on a real Windows machine. The table is a surface map, not a verdict machine.
 
-| Signal | Parakeet | Cluely | LinkJobAI | InterviewMan standard | Weather Tracker (IM generic) | Phone-relay stealth |
-|--------|----------|--------|-----------|-----------------------|------------------------------|---------------------|
+| Signal | Parakeet | Cluely | LinkJobAI | InterviewMan standard | Weather Tracker (IM generic) | InterviewMan / Weather Tracker stealth |
+|--------|----------|--------|-----------|-----------------------|------------------------------|------------------------------------|
 | Display affinity | Caught | Caught (undetectable mode on) | Caught | Caught | Caught | Caught at dashboard startup, then cleared when hidden |
 | Overlay heuristics | Caught | Not flagged | Caught | Caught | Caught | Caught at dashboard startup, then cleared when hidden |
 | Process / path / tree | Caught | Caught | Caught | Caught | Caught | Caught |
@@ -85,7 +85,7 @@ Field runs on a real Windows machine. The table is a surface map, not a verdict 
 
 ![InterviewMan standard mode detected by Hortense](docs/img/interviewman-weathertracker-standard-scan.jpg)
 
-Stealth phone-relay mode is quieter on the surface, not clean. The app dashboard opens first; Hortense catches affinity and overlay at startup. When the app backgrounds or vanishes itself, those window-facing signals clear, but process/tree and the local relay listener remain. The phone can ask the local webserver for help, but the webserver still has to exist.
+InterviewMan / Weather Tracker stealth phone-relay mode is quieter on the surface, not clean. The app dashboard opens first; Hortense catches affinity and overlay at startup. When the app backgrounds or vanishes itself, those window-facing signals clear, but process/tree and the local relay listener remain. The phone can ask the local webserver for help, but the webserver still has to exist.
 
 That shape is awkward in a real interview. The candidate needs confidence that the Windows server is running and reachable from the phone, and the interview audio still has to reach the phone somehow, often by loudspeaker. Hortense does not need the hidden window to keep telling the story; the durable process and relay cluster is enough to keep the signal on the board. The dashboard image above shows that retained shape live.
 

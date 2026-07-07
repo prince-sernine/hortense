@@ -50,7 +50,7 @@ I ran Hortense against popular tools because real products leave real evidence.
 
 Parakeet showed up as `pmodule.exe`: affinity, overlay, process, microphone. Cluely with undetectable mode on tripped display affinity; with it off, the window behaved more like a normal app, but the process and microphone trail still held. LinkJobAI showed up as `Lynccontainer.exe`: affinity, overlay, process, and WebView2 audio ancestry.
 
-InterviewMan and its Weather Tracker generic build added the relay shape. In standard mode the stack was plain: affinity, overlay, process/tree, relay listener, microphone. In stealth phone-relay mode, the dashboard still had to open first. Hortense caught affinity and overlay at startup; when the app hid itself, those window-facing signals cleared, but the process and local listener remained.
+InterviewMan and its Weather Tracker generic build added the relay shape. In standard mode the stack was plain: affinity, overlay, process/tree, relay listener, microphone. In their stealth phone-relay mode, the dashboard still had to open first. Hortense caught affinity and overlay at startup; when the app hid itself, those window-facing signals cleared, but the process and local listener remained.
 
 The pattern matters. Not one magic signal. A chain Windows could still name.
 
@@ -101,7 +101,7 @@ Today Hortense reads the Windows IPv4 TCP owner table while a native meeting app
 
 The PC-to-phone relay is a different costume with the same goal. InterviewMan is the standard build. Weather Tracker is the generic white-label build. Both listen on a local port and accept connections from a phone on the same Wi-Fi. The direct AI endpoint is no longer the obvious clue.
 
-The stealth mode is not magic. The app dashboard opens, the candidate selects stealth, and the window-facing evidence can go quiet after startup. That still leaves a Windows process and a local webserver waiting for the phone. In a real interview, the user usually needs to know the server is alive and reachable before trusting the phone flow, so the dashboard open is part of the practical shape.
+Their stealth mode is not magic. The app dashboard opens, the candidate selects stealth, and the window-facing evidence can go quiet after startup. That still leaves a Windows process and a local webserver waiting for the phone. In a real interview, the user usually needs to know the server is alive and reachable before trusting the phone flow, so the dashboard open is part of the practical shape.
 
 Hortense watches for that shape: a non-trusted process binding a listener, especially on all interfaces, plus established peers on RFC1918 or CGNAT ranges. Cheat signatures fire first; Authenticode and the hybrid trust catalog keep Zoom, Teams, Spotify, and other signed consumer apps from being mistaken for a relay when the tiers agree. Corroboration then sets the volume: a listener on a modified app or a cheat-shaped stack stays visible on its own weight, while a lone, unattributed listener is read as call-context and only surfaces around a live meeting. If the same product also carries overlay, mic, process, or affinity evidence, the stack still speaks. In `watch` mode, each signal follows the product cluster, so the terminal shows appeared, partial cleared, and `[CLEARED]` instead of spamming the same static finding every poll.
 
